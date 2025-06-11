@@ -241,6 +241,10 @@ int hard_voxelize_gpu(const at::Tensor& points, at::Tensor& voxels,
   at::cuda::CUDAGuard device_guard(points.device());
 
   const int num_points = points.size(0);
+
+  if (num_points == 0)
+    return 0;
+
   const int num_features = points.size(1);
 
   const float voxel_x = voxel_size[0];
@@ -267,6 +271,11 @@ int hard_voxelize_gpu(const at::Tensor& points, at::Tensor& voxels,
   // 1. link point to corresponding voxel coors
   AT_DISPATCH_ALL_TYPES(
       points.scalar_type(), "hard_voxelize_kernel", ([&] {
+        // printf(
+        //   "VOXEL_KERN LAUNCH: blocks=(%d,%d,%d), threads=(%d,%d,%d)\n",
+        //   grid.x, grid.y, grid.z,
+        //   block.x, block.y, block.z
+        // );
         dynamic_voxelize_kernel<scalar_t, int>
             <<<grid, block, 0, at::cuda::getCurrentCUDAStream()>>>(
                 points.contiguous().data_ptr<scalar_t>(),
@@ -414,6 +423,11 @@ int nondisterministic_hard_voxelize_gpu(
   // 1. link point to corresponding voxel coors
   AT_DISPATCH_ALL_TYPES(
       points.scalar_type(), "hard_voxelize_kernel", ([&] {
+        printf(
+          "NONDETERMINISTIC VOXEL_KERN LAUNCH: blocks=(%d,%d,%d), threads=(%d,%d,%d)\n",
+          grid.x, grid.y, grid.z,
+          block.x, block.y, block.z
+        );
     dynamic_voxelize_kernel<scalar_t, int>
     <<<grid, block, 0, at::cuda::getCurrentCUDAStream()>>>(
         points.contiguous().data_ptr<scalar_t>(),

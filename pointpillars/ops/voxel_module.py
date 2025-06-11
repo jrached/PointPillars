@@ -118,6 +118,18 @@ class Voxelization(nn.Module):
         else:
             max_voxels = self.max_voxels[1]
 
+        if input.shape[0] == 0:
+            print("Warning: input is empty, returning empty voxelization.")
+        # print("Voxelization config:")
+        # print("  voxel_size:", self.voxel_size)
+        # print("  point_cloud_range:", self.point_cloud_range)
+        # print("  max_num_points:", self.max_num_points)
+        # print("  max_voxels:", max_voxels)
+        # print("  deterministic:", self.deterministic)
+        # print("  grid_size:", self.grid_size)
+        # print("  pcd_shape:", self.pcd_shape)
+        # print("  input shape:", input.shape)
+        
         return _Voxelization.apply(input, self.voxel_size, self.point_cloud_range,
                                    self.max_num_points, max_voxels,
                                    self.deterministic)

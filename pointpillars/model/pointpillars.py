@@ -27,7 +27,7 @@ class PillarLayer(nn.Module):
         '''
         pillars, coors, npoints_per_pillar = [], [], []
         for i, pts in enumerate(batched_pts):
-            voxels_out, coors_out, num_points_per_voxel_out = self.voxel_layer(pts) 
+            voxels_out, coors_out, num_points_per_voxel_out = self.voxel_layer(pts.contiguous()) 
             # voxels_out: (max_voxel, num_points, c), coors_out: (max_voxel, 3)
             # num_points_per_voxel_out: (max_voxel, )
             pillars.append(voxels_out)
@@ -40,7 +40,8 @@ class PillarLayer(nn.Module):
         for i, cur_coors in enumerate(coors):
             coors_batch.append(F.pad(cur_coors, (1, 0), value=i))
         coors_batch = torch.cat(coors_batch, dim=0) # (p1 + p2 + ... + pb, 1 + 3)
-
+        if coors_batch.shape[0] == 0:
+            print("Coord out: ", coors_out.shape)
         return pillars, coors_batch, npoints_per_pillar
 
 
@@ -94,12 +95,13 @@ class PillarEncoder(nn.Module):
         # 6. pillar scatter
         batched_canvas = []
         bs = coors_batch[-1, 0] + 1
+        dtype = pooling_features.dtype
         for i in range(bs):
             cur_coors_idx = coors_batch[:, 0] == i
             cur_coors = coors_batch[cur_coors_idx, :]
             cur_features = pooling_features[cur_coors_idx]
 
-            canvas = torch.zeros((self.x_l, self.y_l, self.out_channel), dtype=torch.float32, device=device)
+            canvas = torch.zeros((self.x_l, self.y_l, self.out_channel), dtype=dtype, device=device)
             canvas[cur_coors[:, 1], cur_coors[:, 2]] = cur_features
             canvas = canvas.permute(2, 1, 0).contiguous()
             batched_canvas.append(canvas)
@@ -146,7 +148,7 @@ class Backbone(nn.Module):
 
 
 class Neck(nn.Module):
-    def __init__(self, in_channels, upsample_strides, out_channels):
+    def __init__(self, in_channels, upsample_strides, out_channels, paddings=None):
         super().__init__()
         assert len(in_channels) == len(upsample_strides)
         assert len(upsample_strides) == len(out_channels)
@@ -158,6 +160,7 @@ class Neck(nn.Module):
                                                     out_channels[i], 
                                                     upsample_strides[i], 
                                                     stride=upsample_strides[i],
+                                                    padding=0 if paddings is None else paddings[i],
                                                     bias=False))
             decoder_block.append(nn.BatchNorm2d(out_channels[i], eps=1e-3, momentum=0.01))
             decoder_block.append(nn.ReLU(inplace=True))
