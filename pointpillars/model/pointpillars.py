@@ -46,17 +46,20 @@ class PillarLayer(nn.Module):
 
 
 class PillarEncoder(nn.Module):
-    def __init__(self, voxel_size, point_cloud_range, in_channel, out_channel):
+    def __init__(self, voxel_size, point_cloud_range, 
+                 in_channel, out_channel,
+                 augment_min_z=False):
         super().__init__()
         self.out_channel = out_channel
+        self.augment_min_z = augment_min_z
         self.vx, self.vy = voxel_size[0], voxel_size[1]
         self.x_offset = voxel_size[0] / 2 + point_cloud_range[0]
         self.y_offset = voxel_size[1] / 2 + point_cloud_range[1]
         self.x_l = int((point_cloud_range[3] - point_cloud_range[0]) / voxel_size[0])
         self.y_l = int((point_cloud_range[4] - point_cloud_range[1]) / voxel_size[1])
 
-        self.conv = nn.Conv1d(in_channel, out_channel, 1, bias=False)
-        self.bn = nn.BatchNorm1d(out_channel, eps=1e-3, momentum=0.01)
+        self.conv = nn.Conv1d(in_channel, out_channel - 1 if augment_min_z else out_channel, 1, bias=False)
+        self.bn = nn.BatchNorm1d(out_channel - 1 if augment_min_z else out_channel, eps=1e-3, momentum=0.01)
 
     def forward(self, pillars, coors_batch, npoints_per_pillar):
         '''
@@ -91,6 +94,10 @@ class PillarEncoder(nn.Module):
         features = features.permute(0, 2, 1).contiguous() # (p1 + p2 + ... + pb, 9, num_points)
         features = F.relu(self.bn(self.conv(features)))  # (p1 + p2 + ... + pb, out_channels, num_points)
         pooling_features = torch.max(features, dim=-1)[0] # (p1 + p2 + ... + pb, out_channels)
+
+        if self.augment_min_z:
+            min_z_per_pillar = torch.min(pillars[:, :, 2], dim=1)[0].unsqueeze(1)
+            pooling_features = torch.cat([pooling_features, min_z_per_pillar], dim=1)
 
         # 6. pillar scatter
         batched_canvas = []
