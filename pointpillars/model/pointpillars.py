@@ -154,6 +154,36 @@ class Backbone(nn.Module):
             outs.append(x)
         return outs
 
+class NeckUpSample(nn.Module):
+    def __init__(self, in_channels, upsample_strides, out_channels, paddings=None):
+        super().__init__()
+        assert len(in_channels) == len(upsample_strides)
+        assert len(upsample_strides) == len(out_channels)
+
+        self.decoder_blocks = nn.ModuleList()
+        for i in range(len(in_channels)):
+            decoder_block = []
+            decoder_block.append(nn.Upsample(scale_factor=upsample_strides[i], mode='nearest'))
+            # decoder_block.append(nn.ReflectionPad2d(1))
+            decoder_block.append(nn.Conv2d(in_channels[i], out_channels[i], kernel_size=1, padding=0, bias=False))
+            decoder_block.append(nn.BatchNorm2d(out_channels[i], eps=1e-3, momentum=0.01))
+            decoder_block.append(nn.ReLU(inplace=True))
+
+            self.decoder_blocks.append(nn.Sequential(*decoder_block))
+        
+        # in consitent with mmdet3d
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+
+    def forward(self, x):
+        outs = []
+        for i in range(len(self.decoder_blocks)):
+            xi = self.decoder_blocks[i](x[i]) # (bs, 128, 248, 216)
+            # print(xi.shape)
+            outs.append(xi)
+        out = torch.cat(outs, dim=1)
+        return out
 
 class Neck(nn.Module):
     def __init__(self, in_channels, upsample_strides, out_channels, paddings=None):
