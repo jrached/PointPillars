@@ -163,9 +163,9 @@ class NeckUpSample(nn.Module):
         self.decoder_blocks = nn.ModuleList()
         for i in range(len(in_channels)):
             decoder_block = []
-            decoder_block.append(nn.Upsample(scale_factor=upsample_strides[i], mode='nearest'))
-            # decoder_block.append(nn.ReflectionPad2d(1))
-            decoder_block.append(nn.Conv2d(in_channels[i], out_channels[i], kernel_size=1, padding=0, bias=False))
+            decoder_block.append(nn.Upsample(scale_factor=upsample_strides[i], mode='bilinear', align_corners=True))
+            decoder_block.append(nn.ReflectionPad2d(1))
+            decoder_block.append(nn.Conv2d(in_channels[i], out_channels[i], kernel_size=3, padding=0, bias=False))
             decoder_block.append(nn.BatchNorm2d(out_channels[i], eps=1e-3, momentum=0.01))
             decoder_block.append(nn.ReLU(inplace=True))
 
