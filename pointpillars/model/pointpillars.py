@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import pdb
 import torch
 import torch.nn as nn
@@ -26,6 +27,8 @@ class PillarLayer(nn.Module):
                num_points_per_pillar: (p1 + p2 + ... + pb, ), (b: batch size)
         '''
         pillars, coors, npoints_per_pillar = [], [], []
+
+        
         for i, pts in enumerate(batched_pts):
             voxels_out, coors_out, num_points_per_voxel_out = self.voxel_layer(pts.contiguous()) 
             # print("Voxels out shape:", voxels_out.shape)
@@ -34,7 +37,8 @@ class PillarLayer(nn.Module):
             pillars.append(voxels_out)
             coors.append(coors_out.long())
             npoints_per_pillar.append(num_points_per_voxel_out)
-        
+
+
         pillars = torch.cat(pillars, dim=0) # (p1 + p2 + ... + pb, num_points, c)
         npoints_per_pillar = torch.cat(npoints_per_pillar, dim=0) # (p1 + p2 + ... + pb, )
         coors_batch = []

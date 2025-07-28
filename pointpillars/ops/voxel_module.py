@@ -1,5 +1,5 @@
 # This file is modified from https://github.com/open-mmlab/mmdetection3d/blob/master/mmdet3d/ops/voxel/voxelize.py
-
+import time
 import torch
 import torch.nn as nn
 from pointpillars.ops.voxel_op import hard_voxelize
@@ -51,10 +51,17 @@ class _Voxelization(torch.autograd.Function):
         coors = points.new_zeros(size=(max_voxels, 3), dtype=torch.int)
         num_points_per_voxel = points.new_zeros(
             size=(max_voxels, ), dtype=torch.int)
+        
+        torch.cuda.synchronize()
+        start = time.time()
         voxel_num = hard_voxelize(points, voxels, coors,
                                     num_points_per_voxel, voxel_size,
                                     coors_range, max_points, max_voxels, 3,
                                     deterministic)
+        torch.cuda.synchronize()
+        end = time.time()
+        print(f'hard_voxelize time: {1000*(end - start):.4f} ms')
+
         # select the valid voxels
         voxels_out = voxels[:voxel_num]
         coors_out = coors[:voxel_num].flip(-1) # (z, y, x) -> (x, y, z)
@@ -118,8 +125,8 @@ class Voxelization(nn.Module):
         else:
             max_voxels = self.max_voxels[1]
 
-        if input.shape[0] == 0:
-            print("Warning: input is empty, returning empty voxelization.")
+        # if input.shape[0] == 0:
+        #     print("Warning: input is empty, returning empty voxelization.")
         # print("Voxelization config:")
         # print("  voxel_size:", self.voxel_size)
         # print("  point_cloud_range:", self.point_cloud_range)
