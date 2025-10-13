@@ -52,15 +52,15 @@ class _Voxelization(torch.autograd.Function):
         num_points_per_voxel = points.new_zeros(
             size=(max_voxels, ), dtype=torch.int)
         
-        torch.cuda.synchronize()
-        start = time.time()
+        # torch.cuda.synchronize()
+        # start = time.time()
         voxel_num = hard_voxelize(points, voxels, coors,
                                     num_points_per_voxel, voxel_size,
                                     coors_range, max_points, max_voxels, 3,
                                     deterministic)
-        torch.cuda.synchronize()
-        end = time.time()
-        print(f'hard_voxelize time: {1000*(end - start):.4f} ms')
+        # torch.cuda.synchronize()
+        # end = time.time()
+        # print(f'hard_voxelize time: {1000*(end - start):.4f} ms')
 
         # select the valid voxels
         voxels_out = voxels[:voxel_num]
